@@ -3,6 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Radio Premium">
+    <link rel="manifest" id="pwa-manifest">
+    <!-- Icono base para la instalación -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Cpath d='M256 80c-8.8 0-16 7.2-16 16v144c-35.3 0-64 28.7-64 64s28.7 64 64 64 64-28.7 64-64-28.7-64-64-64V96c0-8.8-7.2-16-16-16zM144 240c0-26.5-21.5-48-48-48s-48 21.5-48 48 21.5 48 48 48 48-21.5 48-48zm272-48c-26.5 0-48 21.5-48 48s21.5 48 48 48 48-21.5 48-48-21.5-48-48-48z' fill='%233b82f6'/%3E%3C/svg%3E">
+
     <title>Reproductor de Radio Premium</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -424,6 +434,57 @@
             updateStatus("SEÑAL CAÍDA", "red");
             pauseAudio();
         });
+
+        // ==========================================
+        // Lógica para PWA (Progressive Web App)
+        // ==========================================
+        
+        // 1. Generar Manifest dinámicamente
+        const iconSvg = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Cpath d='M256 80c-8.8 0-16 7.2-16 16v144c-35.3 0-64 28.7-64 64s28.7 64 64 64 64-28.7 64-64-28.7-64-64-64V96c0-8.8-7.2-16-16-16zM144 240c0-26.5-21.5-48-48-48s-48 21.5-48 48 21.5 48 48 48 48-21.5 48-48zm272-48c-26.5 0-48 21.5-48 48s21.5 48 48 48 48-21.5 48-48-21.5-48-48-48z' fill='%233b82f6'/%3E%3C/svg%3E";
+        
+        const manifestJSON = {
+            "name": "Radio Premium",
+            "short_name": "Radio",
+            "start_url": location.href,
+            "display": "standalone",
+            "background_color": "#020617",
+            "theme_color": "#0f172a",
+            "icons": [
+                {
+                    "src": iconSvg,
+                    "sizes": "192x192 512x512",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable"
+                }
+            ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(manifestJSON)], {type: 'application/json'});
+        document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+        // 2. Generar e instalar Service Worker dinámicamente
+        const swCode = `
+            self.addEventListener('install', event => self.skipWaiting());
+            self.addEventListener('activate', event => event.waitUntil(clients.claim()));
+            self.addEventListener('fetch', event => {
+                // No cacheamos los streams de audio para que siempre suenen en vivo
+                if (event.request.url.includes('radiomast') || event.request.url.includes('rootservers')) {
+                    return;
+                }
+                event.respondWith(fetch(event.request).catch(() => new Response("Offline")));
+            });
+        `;
+        
+        const swBlob = new Blob([swCode], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(swBlob);
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register(swUrl)
+                    .then(reg => console.log('Service Worker registrado con éxito para la PWA.'))
+                    .catch(err => console.log('Error al registrar Service Worker:', err));
+            });
+        }
     </script>
 </body>
 </html>
